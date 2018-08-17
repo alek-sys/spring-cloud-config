@@ -30,6 +30,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.assertEquals;
 
 /**
@@ -71,13 +72,45 @@ public class EnvironmentMonitorAutoConfigurationTests {
 		context.close();
 	}
 
-	@Configuration
+    @Test
+    public void testCloudBusConfigurationBacksoffWhenRefreshEventListenerIsProvided() {
+        ConfigurableApplicationContext context = new SpringApplicationBuilder(
+                BusConfig.class,
+                RefreshEventPublisherConfig.class,
+                CustomPropertyPathNotificationExtractorConfig.class,
+                EnvironmentMonitorAutoConfiguration.class,
+                ServletWebServerFactoryAutoConfiguration.class, ServerProperties.class,
+                PropertyPlaceholderAutoConfiguration.class).properties("server.port=-1")
+                        .run();
+
+        RefreshEventPublisher eventPublisher = context.getBean(RefreshEventPublisher.class);
+
+        assertThat(eventPublisher).isInstanceOf(MockRefreshEventPublisher.class);
+    }
+
+    @Configuration
 	static class BusConfig {
 
 		@Bean
 		public BusProperties busProperties() {
 			return new BusProperties();
 		}
+    }
+
+    static class MockRefreshEventPublisher implements RefreshEventPublisher {
+        @Override
+        public void publishEvent(Object source, String destinationService) {
+
+        }
+    }
+
+    @Configuration
+    static class RefreshEventPublisherConfig {
+
+	    @Bean
+        public RefreshEventPublisher refreshEventPublisher() {
+	        return new MockRefreshEventPublisher();
+        }
     }
 
 	@Configuration

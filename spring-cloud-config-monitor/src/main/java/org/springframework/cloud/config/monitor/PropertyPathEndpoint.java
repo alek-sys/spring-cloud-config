@@ -16,27 +16,14 @@
 
 package org.springframework.cloud.config.monitor;
 
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.springframework.cloud.bus.event.RefreshRemoteApplicationEvent;
-import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.context.ApplicationEventPublisherAware;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.util.StringUtils;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestMethod;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.*;
 
 /**
  * HTTP endpoint for webhooks coming from repository providers.
@@ -46,28 +33,16 @@ import org.springframework.web.bind.annotation.RestController;
  */
 @RestController
 @RequestMapping(path = "${spring.cloud.config.monitor.endpoint.path:}/monitor")
-public class PropertyPathEndpoint
-		implements ApplicationEventPublisherAware {
+public class PropertyPathEndpoint {
 
 	private static Log log = LogFactory.getLog(PropertyPathEndpoint.class);
 
 	private final PropertyPathNotificationExtractor extractor;
-	private ApplicationEventPublisher applicationEventPublisher;
-	private String busId;
+	private final RefreshEventPublisher refreshEventPublisher;
 
-	public PropertyPathEndpoint(PropertyPathNotificationExtractor extractor, String busId) {
+	public PropertyPathEndpoint(PropertyPathNotificationExtractor extractor, RefreshEventPublisher refreshEventPublisher) {
 		this.extractor = extractor;
-		this.busId = busId;
-	}
-
-	/* for testing */ String getBusId() {
-		return busId;
-	}
-
-	@Override
-	public void setApplicationEventPublisher(
-			ApplicationEventPublisher applicationEventPublisher) {
-		this.applicationEventPublisher = applicationEventPublisher;
+		this.refreshEventPublisher = refreshEventPublisher;
 	}
 
 	@RequestMapping(method = RequestMethod.POST)
@@ -81,15 +56,11 @@ public class PropertyPathEndpoint
 			for (String path : notification.getPaths()) {
 				services.addAll(guessServiceName(path));
 			}
-			if (this.applicationEventPublisher != null) {
-				for (String service : services) {
-					log.info("Refresh for: " + service);
-					this.applicationEventPublisher
-							.publishEvent(new RefreshRemoteApplicationEvent(this,
-									this.busId, service));
-				}
-				return services;
-			}
+            for (String service : services) {
+                log.info("Refresh for: " + service);
+                this.refreshEventPublisher.publishEvent(this, service);
+            }
+            return services;
 
 		}
 		return Collections.emptySet();

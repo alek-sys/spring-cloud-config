@@ -19,6 +19,7 @@ package org.springframework.cloud.config.monitor;
 import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
 import org.springframework.cloud.bus.BusProperties;
@@ -40,8 +41,14 @@ public class EnvironmentMonitorAutoConfiguration {
 	private List<PropertyPathNotificationExtractor> extractors;
 
 	@Bean
-	public PropertyPathEndpoint propertyPathEndpoint(BusProperties busProperties) {
-		return new PropertyPathEndpoint(new CompositePropertyPathNotificationExtractor(this.extractors), busProperties.getId());
+	public PropertyPathEndpoint propertyPathEndpoint(RefreshEventPublisher refreshEventPublisher) {
+		return new PropertyPathEndpoint(new CompositePropertyPathNotificationExtractor(this.extractors), refreshEventPublisher);
+	}
+
+	@Bean
+	@ConditionalOnMissingBean(RefreshEventPublisher.class)
+	public RefreshEventPublisher refreshEventPublisher(BusProperties busProperties) {
+		return new CloudBusRefreshEventPublisher(busProperties.getId());
 	}
 
 	@Configuration

@@ -17,6 +17,9 @@
 package org.springframework.cloud.config.monitor;
 
 import static org.junit.Assert.assertEquals;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.reset;
+import static org.mockito.Mockito.verify;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -33,21 +36,16 @@ import org.springframework.http.HttpHeaders;
  */
 public class PropertyPathEndpointTests {
 
+    private RefreshEventPublisher mockRefreshEventPublisher = mock(RefreshEventPublisher.class);
+
 	private PropertyPathEndpoint endpoint = new PropertyPathEndpoint(
 			new CompositePropertyPathNotificationExtractor(
-					Collections.emptyList()), "abc1");
+					Collections.emptyList()), mockRefreshEventPublisher);
 
 	@Before
 	public void init() {
-		StaticApplicationContext publisher = new StaticApplicationContext();
-		this.endpoint.setApplicationEventPublisher(publisher);
-		publisher.refresh();
+		reset(mockRefreshEventPublisher);
 	}
-
-    @Test
-    public void testBusId() {
-        assertEquals("abc1", this.endpoint.getBusId());
-    }
 
 	@Test
 	public void testNotifyByForm() {
@@ -118,4 +116,9 @@ public class PropertyPathEndpointTests {
 				.toString());
 	}
 
+    @Test
+    public void testRefreshCalled() {
+        this.endpoint.notifyByPath(new HttpHeaders(), Collections.singletonMap("path", "application-local.yml"));
+        verify(mockRefreshEventPublisher).publishEvent(this.endpoint, "*:local");
+    }
 }
